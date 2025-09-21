@@ -16,7 +16,8 @@ jobs:
 
       - name: Run Semgrep SAST Scan
         run: |
-          docker run --rm -v "${PWD}:/src" semgrep/semgrep semgrep --config="p/owasp-top-ten" --error .
+          docker run --rm -v "${PWD}:/src" semgrep/semgrep \
+          semgrep --config="p/owasp-top-ten" --error .
 
   sca-analysis:
     runs-on: ubuntu-latest
@@ -53,11 +54,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Create network
+        run: docker network create zapnet
+
       - name: Build Docker image
         run: docker build -t financial-api:latest .
 
       - name: Run application in background
-        run: docker run -d --name api -p 8000:8000 financial-api:latest
+        run: docker run -d --name api --network zapnet -p 8000:8000 financial-api:latest
       
       - name: Wait for application to start
         run: sleep 15
@@ -68,6 +72,11 @@ jobs:
     steps:
       - name: Run OWASP ZAP Baseline Scan
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw --network="host" \
-          owasp/zap2docker-stable zap-baseline.py -t http://127.0.0.1:8000 -r report.html \
-          || true
+          docker run --rm -v $(pwd):/zap/wrk/:rw --network zapnet \
+          ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://api:8000 -r report.html || true
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zap-report
+          path: report.html
