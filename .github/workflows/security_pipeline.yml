@@ -8,26 +8,23 @@ on:
   workflow_dispatch:
 
 jobs:
-  static-analysis:
+  sast-analysis:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Run Semgrep SAST Scan
         run: |
-          docker run --rm -v "${PWD}:/src" semgrep/semgrep semgrep \
-          --config="p/owasp-top-ten" --sarif --output semgrep-results.sarif \
-          || true
+          docker run --rm -v "${PWD}:/src" semgrep/semgrep semgrep --config="p/owasp-top-ten" --error .
 
-      - name: Upload Semgrep SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: semgrep-results.sarif
+  sca-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up Node.js for Snyk
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
@@ -35,50 +32,42 @@ jobs:
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      - name: Install Python dependencies for Snyk
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python dependencies
         run: pip install -r app/requirements.txt
 
-      - name: Run Snyk SCA Scan
+      - name: Run Snyk Scan
         working-directory: ./app
         run: snyk monitor --file=requirements.txt --fail-on=high --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-  dynamic-analysis:
+  build-and-run-for-dast:
     runs-on: ubuntu-latest
-    needs: [static-analysis]
+    needs: [sast-analysis, sca-analysis]
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Build Docker image for the application
+      - name: Build Docker image
         run: docker build -t financial-api:latest .
 
-      - name: Create a Docker network
-        run: docker network create scan-net
-
-      - name: Run application in background on the new network
-        run: docker run -d --network scan-net --name api -p 8000:8000 financial-api:latest
+      - name: Run application in background
+        run: docker run -d --name api -p 8000:8000 financial-api:latest
       
-      - name: Wait for a moment
-        run: sleep 20
+      - name: Wait for application to start
+        run: sleep 15
 
-      - name: Check status of containers
-        run: docker ps -a
-
-      - name: Check application container logs
-        run: docker logs api
-
+  dast-analysis:
+    runs-on: ubuntu-latest
+    needs: build-and-run-for-dast
+    steps:
       - name: Run OWASP ZAP Baseline Scan
         run: |
-          docker run --rm \
-            --user root \
-            -v $(pwd):/zap/wrk/:rw \
-            --network scan-net \
-            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://api:8000 -r report.html
-
-      - name: Upload DAST Scan Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dast-report
-          path: report.html
+          docker run --rm -v $(pwd):/zap/wrk/:rw --network="host" \
+          owasp/zap2docker-stable zap-baseline.py -t http://127.0.0.1:8000 -r report.html \
+          || true
