@@ -30,9 +30,8 @@ jobs:
           # Adicione o token do Snyk nos Secrets do seu repositório
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          file: app/requirements.txt
           command: monitor
-          args: --fail-on=high --severity-threshold=high
+          args: --file=app/requirements.txt --fail-on=high --severity-threshold=high
 
   build-and-run-for-dast:
     runs-on: ubuntu-latest
