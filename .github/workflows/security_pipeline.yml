@@ -23,30 +23,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r app/requirements.txt
       
-      - name: Run Snyk SCA Scan
+      - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python@master
+        working-directory: ./app
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          # A forma correta de passar múltiplos argumentos é em linhas separadas
           args: >
-            --file=app/requirements.txt
+            --file=requirements.txt
             --fail-on=high
             --severity-threshold=high
 
   build-and-run-for-dast:
     runs-on: ubuntu-latest
-    # Este job só roda se os scans estáticos passarem
     needs: [sast-analysis, sca-analysis]
     steps:
       - name: Checkout code
