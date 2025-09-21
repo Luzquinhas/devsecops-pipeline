@@ -81,7 +81,7 @@ jobs:
           owasp/zap2docker-stable zap-baseline.py -t http://127.0.0.1:8000 -r report.html
 
       - name: Upload DAST Scan Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dast-report
           path: report.html
