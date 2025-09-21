@@ -23,18 +23,28 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
       
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/python@master
+      - name: Install Python dependencies
+        run: pip install -r app/requirements.txt
+
+      - name: Run Snyk Scan
         working-directory: ./app
+        run: snyk monitor --file=requirements.txt --fail-on=high --severity-threshold=high
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-          args: >
-            --file=requirements.txt
-            --fail-on=high
-            --severity-threshold=high
 
   build-and-run-for-dast:
     runs-on: ubuntu-latest
