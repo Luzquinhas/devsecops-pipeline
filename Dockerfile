@@ -14,5 +14,9 @@ COPY ./app /code/app
 # 5. Expor a porta que a aplicação vai rodar
 EXPOSE 8000
 
+# Cria um usuário não-root e o utiliza
+RUN useradd --create-home appuser
+USER appuser
+
 # 6. Comando para iniciar a aplicação quando o container rodar
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
