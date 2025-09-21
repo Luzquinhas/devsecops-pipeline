@@ -60,8 +60,14 @@ jobs:
       - name: Run application in background on the new network
         run: docker run -d --network scan-net --name api -p 8000:8000 financial-api:latest
       
-      - name: Wait for application to start
+      - name: Wait for a moment
         run: sleep 20
+
+      - name: Check status of containers
+        run: docker ps -a
+
+      - name: Check application container logs
+        run: docker logs api
 
       - name: Run OWASP ZAP Baseline Scan
         run: |
