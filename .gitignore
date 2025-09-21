@@ -1,0 +1,40 @@
+
+venv/
+.venv/
+env/
+.env
+
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Dependências e Build ---
+# Ignora pastas de instalação de pacotes e build
+dist/
+build/
+*.egg-info/
+/downloads/
+/node_modules/
+
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.atom/
+
+# --- Arquivos de Sistema Operacional ---
+# Windows
+Thumbs.db
+
+# --- Arquivos de Log e Relatórios ---
+*.log
+*.tmp
+*.swp
