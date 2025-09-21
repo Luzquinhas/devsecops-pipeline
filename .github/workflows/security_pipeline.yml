@@ -23,19 +23,30 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt
       
-      - name: Run Snyk SCA Scan for Python dependencies
+      - name: Run Snyk SCA Scan
         uses: snyk/actions/python@master
         env:
-          # Adicione o token do Snyk nos Secrets do seu repositório
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          args: --file=app/requirements.txt --fail-on=high --severity-threshold=high
+          # A forma correta de passar múltiplos argumentos é em linhas separadas
+          args: >
+            --file=app/requirements.txt
+            --fail-on=high
+            --severity-threshold=high
 
   build-and-run-for-dast:
     runs-on: ubuntu-latest
-    # Este job depende dos scans estáticos passarem
+    # Este job só roda se os scans estáticos passarem
     needs: [sast-analysis, sca-analysis]
     steps:
       - name: Checkout code
@@ -45,24 +56,17 @@ jobs:
         run: docker build -t financial-api:latest .
 
       - name: Run application in background
-        # Roda o container e dá a ele o nome 'api' para ser encontrado pelo ZAP
         run: docker run -d --name api -p 8000:8000 financial-api:latest
       
       - name: Wait for application to start
-        # DAST precisa que a API esteja pronta para receber requisições
         run: sleep 15
 
   dast-analysis:
     runs-on: ubuntu-latest
-    # Roda somente após a aplicação subir
     needs: build-and-run-for-dast
     steps:
       - name: Run OWASP ZAP Baseline Scan
         run: |
           docker run --rm -v $(pwd):/zap/wrk/:rw --network="host" \
-          owasp/zap2docker-stable zap-baseline.py -t http://127.0.0.1:8000 -r report.html
-          
-          # Se o ZAP encontrar alertas, ele retorna um código de erro.
-          # O '|| true' abaixo evita que o pipeline quebre por enquanto.
-          # Remova o '|| true' quando quiser que o pipeline falhe com vulnerabilidades.
+          owasp/zap2docker-stable zap-baseline.py -t http://127.0.0.1:8000 -r report.html \
           || true
