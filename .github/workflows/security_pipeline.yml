@@ -70,13 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build-and-run-for-dast
     steps:
-      - name: Run OWASP ZAP Baseline Scan
+      - name: Run OWASP ZAP Baseline Scan (console output)
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw --network zapnet \
-          ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://api:8000 -r report.html || true
-
-      - name: Upload ZAP Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-report
-          path: report.html
+          docker run --rm --network zapnet ghcr.io/zaproxy/zaproxy:stable \
+          zap-baseline.py -t http://api:8000 -I || true
